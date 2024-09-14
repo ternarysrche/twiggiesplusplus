@@ -1,7 +1,28 @@
 # New version of the hand tracking module
 
 import cv2
+from flask import Flask, Response
+# def generate_frames():
+#     while True:
+#         success, frame = camera.read()
+#         if not success:
+#             break
+#         else:
+#             # Encode frame to JPEG
+#             ret, buffer = cv2.imencode('.jpg', frame)
+#             frame = buffer.tobytes()
 
+#             # Yield frame as byte stream in the format of a multipart response
+#             yield (b'--frame\r\n'
+#                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+# # Video feed route
+# @app.route('/video_feed')
+# def video_feed():
+#     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# if __name__ == '__main__':
+#     app.run(debug=True)
 
 import mediapipe as mp
 import time 
@@ -44,11 +65,26 @@ def main():
   cTime = 0
   cap = cv2.VideoCapture(0)
   detector = handDetector()
+  frame = None
 
   while True:
-    success, img = cap.read()
-    img = detector.findHands(img)
-    lmlist = detector.findPosition(img)
+    success, frame = cap.read()
+    if not success:
+            break
+    else:
+            # Encode frame to JPEG
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+
+            # Yield frame as byte stream in the format of a multipart response
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+    img = frame
+    try:
+      img = detector.findHands(img)
+      lmlist = detector.findPosition(img)
+    except:
+       continue
     if len(lmlist) != 0:
       print(lmlist[4])
     cTime = time.time()
@@ -59,8 +95,15 @@ def main():
 
     cv2.imshow("Image", img)
     cv2.waitKey(1)
+app = Flask(__name__)
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(main(), mimetype='multipart/x-mixed-replace; boundary=frame')
 if __name__ == "__main__":
-  main()
+  app.run(debug=True)
+  # main()
+
 
 
 
