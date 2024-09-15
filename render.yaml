@@ -3,5 +3,5 @@ services:
     name: new_midi
     env: python
     buildCommand:
-      - sudo apt-get install portaudio19-dev python-pyaudio python3-pyaudio
+      - apt-get install portaudio19-dev python-pyaudio python3-pyaudio
     startCommand: gunicorn new_midi:new_midi
