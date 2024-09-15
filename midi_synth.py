@@ -27,43 +27,42 @@ synth.program_select(0, sfid, 0, 2) #select instrument type
 synth.start()
 notes = [48, 50, 52, 54]
 
-def sustain_note_indef(note=60, velocity=100):
+def sustain_note_indef(note, velocity):
     # Start playing the note
     synth.noteon(0, note, velocity)
     
     # Wait for a flag or event to stop the note
-    while not stop_event.is_set():
+    while flags[(note-48)//2] == True:
         time.sleep(0.1)  # A small delay to avoid busy-waiting
 
     # Stop the note when the event is set
     synth.noteoff(0, note)
+    flags[(note-48)//2] = True
 
 # Event flag to signal when to stop the note
-stop_event = threading.Event()
-
 # Start the thread to sustain the note
-def check(fingers, i):
-    stop_event = threading.Event()
-    if i == 0:
-        note_thread1 = threading.Thread(target=sustain_note_indef, args=(48,100))
-        note_thread1.start()
-    if i == 1:
-        note_thread2 = threading.Thread(target=sustain_note_indef, args=(50,100))
-        note_thread2.start()
-    if i == 2:
-        note_thread3 = threading.Thread(target=sustain_note_indef, args=(52,100))
-        note_thread3.start()
-    if i == 3: 
-        note_thread4 = threading.Thread(target=sustain_note_indef, args=(54,100))
-        note_thread.start()
+def check(fingers, i, flags, newFlags):
+    if i == 0 and newFlags[i] == True:
+        sustain_note_indef(48, 100)
+        newFlags[i] = False
+    if i == 1 and newFlags[i] == True:
+        sustain_note_indef(50, 100)
+        newFlags[i] = False
+    if i == 2 and newFlags[i] == True:
+        sustain_note_indef(52, 100)
+        newFlags[i] = False
+    if i == 3 and newFlags[i] == True: 
+        sustain_note_indef(54, 100)
+        newFlags[i] = False
     for f in fingers:
         for x in notes:
-            if f != (x-48)//2:
-                stop_event.set()
-    note_thread1.join()
-    note_thread2.join()
-    note_thread3.join()
-    note_thread4.join()
+            if f != (x-48)//2: #if fingers aren't touching
+                flags[f] = False
+                newFlags[f] = True
+            # else: #if fingers ARE touching
+            #     newFlags[f] = True
+
+                
 
 # time.sleep(0.1)
 # synth.noteoff(0, 52)
