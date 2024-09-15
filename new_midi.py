@@ -2,16 +2,31 @@
 import cv2
 import mediapipe as mp
 import time 
+from flask import Flask, Response, render_template
 
 import tinysoundfont
 import time
 import threading
 
 synth = tinysoundfont.Synth()
-sfid = synth.sfload("florestan-subset.sfo")
+sfid = synth.sfload("./florestan-subset.sfo")
 synth.program_select(0, sfid, 0, 2) #select instrument type
 synth.start()
 notes = [48, 50, 52, 53, 55, 57, 59, 60] # C4 to C5
+
+
+app = Flask(__name__)
+
+# Flask route to stream the video
+# def generate_frames(img):
+#   frame = detector.findHands(frame)
+#   ret, buffer = cv2.imencode('.jpg', frame)
+#   frame = buffer.tobytes()
+#   yield (b'--frame\r\n'
+#           b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+
+
 
 class handDetector():
   def __init__(self, mode = False, maxHands = 2, modelComplex = 1,detectionCon = .5, trackCon = .5):
@@ -83,115 +98,187 @@ def right(vec):
         return 1
 
 def main():
-  pTime = 0
-  cTime = 0
-  cap = cv2.VideoCapture(0)
-  detector = handDetector()
+  try:
+    pTime = 0
+    cTime = 0
+    cap = cv2.VideoCapture(0)
+    detector = handDetector()
 
-  #CALIBRATION
-  
-  # last = []
-  inconsistency = [0,0]
-  ar_valid = [[],[]]
-  alt = 0
-  while (len(ar_valid[0]) <= 20 or len(ar_valid[1]) <= 20):
-    success, img = cap.read()
-    print("going")
-    cv2.putText(img, "PLACE YOUR HANDS OUT FACING CAMERA FOR CALIBRATION", (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
-    img = detector.findHands(img)
-    alt = 1-alt
-    lmlist = detector.findPosition(img, alt)
-    cTime = time.time()
-    fps = 1/(cTime - pTime)
-    pTime = cTime
-    cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+    #CALIBRATION
     
+    # last = []
+    inconsistency = [0,0]
+    ar_valid = [[],[]]
+    alt = 0
+    while (len(ar_valid[0]) <= 20 or len(ar_valid[1]) <= 20):
+      success, img = cap.read()
+      if not success:
+        break
+      cv2.putText(img, "PLACE YOUR HANDS OUT FACING CAMERA FOR CALIBRATION", (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+      img = detector.findHands(img)
+      
+      alt = 1-alt
+      lmlist = detector.findPosition(img, alt)
+      cTime = time.time()
+      fps = 1/(cTime - pTime)
+      pTime = cTime
+      cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
 
 
-    
-    if (lmlist == []):
-      cv2.imshow("Image", img)
-      cv2.waitKey(1)
+
+      if (lmlist == []):
+        ret, buffer = cv2.imencode('.jpg', img)
+        other = buffer.tobytes()
+
+        # Yield frame as byte stream in the format of a multipart response
+        yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + other + b'\r\n\r\n')
+        continue
+      if (len(ar_valid[right(convert(lmlist))]) == 21):
+        ret, buffer = cv2.imencode('.jpg', img)
+        other = buffer.tobytes()
+
+        # Yield frame as byte stream in the format of a multipart response
+        yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + other + b'\r\n\r\n')
+        continue
+      print(len(ar_valid[0]), len(ar_valid[1]), right(convert(lmlist)))
+        # print(computeDiff(compute(convert(lmlist)), last))
+        # print(compute(convert(lmlist)))
+      if (len(ar_valid[right(convert(lmlist))]) == 0):
+        ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
+        print(ar_valid[right(convert(lmlist))])
+        print(1)
+      elif (computeDiff(compute(convert(lmlist)), ar_valid[right(convert(lmlist))][0]) > 0.1):
+        inconsistency[right(convert(lmlist))] += 1
+        cv2.putText(img, "DON'T MOVE YOUR HANDS!!", (200,600), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+        print(2)
+      else:
+        ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
+        print(3)
+
+      if (inconsistency[right(convert(lmlist))] >= 20):
+        print("delete")
+        ar_valid[right(convert(lmlist))] = []
+        inconsistency[right(convert(lmlist))] = 0
+
+
+
+      ret, buffer = cv2.imencode('.jpg', img)
+      other = buffer.tobytes()
+
+      # Yield frame as byte stream in the format of a multipart response
+      yield (b'--frame\r\n'
+              b'Content-Type: image/jpeg\r\n\r\n' + other + b'\r\n\r\n')
       continue
-    if (len(ar_valid[right(convert(lmlist))]) == 21):
+      
+
+
+      
+      
+      # if len(lmlist) != 0:
+      #   print(lmlist[4])
+
+
+
+      # FLASK STUFF
+      # ret, buffer = cv2.imencode('.jpg', img)
+      # img = buffer.tobytes()
+      # yield (b'--frame\r\n'
+      #         b'Content-Type: image/jpeg\r\n\r\n' + img + b'\r\n\r\n')
+
+
+
+      # Yield frame as byte stream in the format of a multipart response
+      # yield (b'--frame\r\n'
+      #         b'Content-Type: image/jpeg\r\n\r\n' + img + b'\r\n\r\n')
+
+      # app = Flask(__name__)
+
+      # @app.route('/video_feed')
+      # def video_feed():
+      #     return Response(main(), mimetype='multipart/x-mixed-replace; boundary=frame')
+      # if __name__ == "__main__":
+      #   app.run(debug=True)
+
+
+
+
+
+
       cv2.imshow("Image", img)
-      cv2.waitKey(1)
-      continue
-    print(len(ar_valid[0]), len(ar_valid[1]), right(convert(lmlist)))
-      # print(computeDiff(compute(convert(lmlist)), last))
-      # print(compute(convert(lmlist)))
-    if (len(ar_valid[right(convert(lmlist))]) == 0):
-      ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
-      print(ar_valid[right(convert(lmlist))])
-      print(1)
-    elif (computeDiff(compute(convert(lmlist)), ar_valid[right(convert(lmlist))][0]) > 0.1):
-      inconsistency[right(convert(lmlist))] += 1
-      cv2.putText(img, "DON'T MOVE YOUR HANDS!!", (200,600), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
-      print(2)
-    else:
-      ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
-      print(3)
-
-    if (inconsistency[right(convert(lmlist))] >= 20):
-      print("delete")
-      ar_valid[right(convert(lmlist))] = []
-      inconsistency[right(convert(lmlist))] = 0
-    # if len(lmlist) != 0:
-    #   print(lmlist[4])
-    cv2.imshow("Image", img)
-    cv2.waitKey(1) 
+      cv2.waitKey(1) 
+      
 
 
-    
-  defaultratios = [[0 for i in range(len(ar_valid[0][0]))] for i in range(2)]
-  for k in range(2):
-    for i in range(len(ar_valid[k][0])):
-        for j in range(len(ar_valid[k])):
-          defaultratios[k][i] += ar_valid[k][j][i]
-        defaultratios[k][i] /= len(ar_valid[k])
-  print(defaultratios)
-  last_fingers = None
-  while (True):
-    success, img = cap.read()
-    img = detector.findHands(img)
-    alt = 1-alt
-    lmlist = detector.findPosition(img, alt)
-    
-    if (compute(convert(lmlist)) != []):
-      currentratios = compute(convert(lmlist))
-      print(currentratios)
-      fingers = []
-      flag = False
-      for i in range(len(currentratios)):
-        if currentratios[i]/defaultratios[right(convert(lmlist))][i] < 0.3:
-          fingers.append(abs(3* (right(convert(lmlist)))-i) + 4*(1-right(convert(lmlist))))
-      print(fingers)
-      if (last_fingers != None):
-        for finger in fingers:
-            if (finger not in last_fingers[right(convert(lmlist))]):
-                synth.noteon(0, notes[finger], 100)
-                print("noteon:", finger)
-        for finger in last_fingers[right(convert(lmlist))]:
-            if (finger not in fingers):
-                synth.noteoff(0, notes[finger])
-                print("noteoff:", finger)
-      if (last_fingers == None):
-        last_fingers = [[],[]]
-      last_fingers[right(convert(lmlist))] = fingers
 
-      cv2.putText(img, str(fingers), (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
-    # if len(lmlist) != 0:
-    #   print(lmlist[4])
-    cTime = time.time()
-    fps = 1/(cTime - pTime)
-    pTime = cTime
+      
+      
 
-    cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
-    cv2.imshow("Image", img)
-    cv2.waitKey(1)
+      
+    defaultratios = [[0 for i in range(len(ar_valid[0][0]))] for i in range(2)]
+    for k in range(2):
+      for i in range(len(ar_valid[k][0])):
+          for j in range(len(ar_valid[k])):
+            defaultratios[k][i] += ar_valid[k][j][i]
+          defaultratios[k][i] /= len(ar_valid[k])
+    print(defaultratios)
+    last_fingers = None
+    while (True):
+      
+      success, img = cap.read()
+      if not success:
+        break
+      img = detector.findHands(img)
+      alt = 1-alt
+      lmlist = detector.findPosition(img, alt)
+      
+      if (compute(convert(lmlist)) != []):
+        currentratios = compute(convert(lmlist))
+        print(currentratios)
+        fingers = []
+        flag = False
+        for i in range(len(currentratios)):
+          if currentratios[i]/defaultratios[right(convert(lmlist))][i] < 0.3:
+            fingers.append(abs(3* (right(convert(lmlist)))-i) + 4*(1-right(convert(lmlist))))
+        print(fingers)
+        if (last_fingers != None):
+          for finger in fingers:
+              if (finger not in last_fingers[right(convert(lmlist))]):
+                  synth.noteon(0, notes[finger], 100)
+                  print("noteon:", finger)
+          for finger in last_fingers[right(convert(lmlist))]:
+              if (finger not in fingers):
+                  synth.noteoff(0, notes[finger])
+                  print("noteoff:", finger)
+        if (last_fingers == None):
+          last_fingers = [[],[]]
+        last_fingers[right(convert(lmlist))] = fingers
+
+        cv2.putText(img, str(fingers), (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+      # if len(lmlist) != 0:
+      #   print(lmlist[4])
+      cTime = time.time()
+      fps = 1/(cTime - pTime)
+      pTime = cTime
+
+      cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+      ret, buffer = cv2.imencode('.jpg', img)
+      other = buffer.tobytes()
+
+      # Yield frame as byte stream in the format of a multipart response
+      yield (b'--frame\r\n'
+              b'Content-Type: image/jpeg\r\n\r\n' + other + b'\r\n\r\n')
+  except:
+     pass
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(main(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
-  main()
+    app.run(debug=True, host="0.0.0.0")
+
 
 
 

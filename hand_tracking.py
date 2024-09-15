@@ -1,6 +1,7 @@
 # New version of the hand tracking module
 import cv2
 import mediapipe as mp
+from flask import Flask, Response
 import time 
 import threading
 
