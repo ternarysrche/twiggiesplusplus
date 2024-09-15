@@ -98,7 +98,7 @@ def main():
   alt = 0
   while (len(ar_valid[0]) <= 20 or len(ar_valid[1]) <= 20):
     success, img = cap.read()
-    print("going")
+    # print("going")
     cv2.putText(img, "PLACE YOUR HANDS OUT FACING CAMERA FOR CALIBRATION", (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
     img = detector.findHands(img)
     alt = 1-alt
@@ -119,23 +119,23 @@ def main():
       cv2.imshow("Image", img)
       cv2.waitKey(1)
       continue
-    print(len(ar_valid[0]), len(ar_valid[1]), right(convert(lmlist)))
+    # print(len(ar_valid[0]), len(ar_valid[1]), right(convert(lmlist)))
       # print(computeDiff(compute(convert(lmlist)), last))
       # print(compute(convert(lmlist)))
     if (len(ar_valid[right(convert(lmlist))]) == 0):
       ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
-      print(ar_valid[right(convert(lmlist))])
-      print(1)
+     # print(ar_valid[right(convert(lmlist))])
+     # print(1)
     elif (computeDiff(compute(convert(lmlist)), ar_valid[right(convert(lmlist))][0]) > 0.1):
       inconsistency[right(convert(lmlist))] += 1
       cv2.putText(img, "DON'T MOVE YOUR HANDS!!", (200,600), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
-      print(2)
+    #  print(2)
     else:
       ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
-      print(3)
+   #   print(3)
 
     if (inconsistency[right(convert(lmlist))] >= 20):
-      print("delete")
+      # print("delete")
       ar_valid[right(convert(lmlist))] = []
       inconsistency[right(convert(lmlist))] = 0
     # if len(lmlist) != 0:
@@ -163,7 +163,7 @@ def main():
     if (compute(convert(lmlist)) != []):
       right_hand_y = lmlist_right[0][2] if len(lmlist_right) > 0 else None
       left_hand_y = lmlist_left[0][2] if len(lmlist_left) > 0 else None
-      print(right_hand_y, left_hand_y)
+     # print(right_hand_y, left_hand_y)
       if right_hand_y == None or left_hand_y == None:
         right_adjust = 0
         left_adjust = 0
@@ -189,22 +189,22 @@ def main():
           if (finger not in last_fingers[right(convert(lmlist))]):
             if finger >= 0 and finger <= 3:
               synth.noteon(0, notes[finger] + left_adjust, 100)
-              print("left hand noteon:", left_adjust)
+            #  print("left hand noteon:", left_adjust)
             if finger >= 4 and finger <= 7:
               synth.noteon(0, notes[finger] + right_adjust, 100)
-              print("right hand noteon:", right_adjust)
+            #  print("right hand noteon:", right_adjust)
         for finger in last_fingers[right(convert(lmlist))]:
           if finger not in fingers:
             if finger >= 0 and finger <= 3:
               synth.noteoff(0, notes[finger] + 1)
               synth.noteoff(0, notes[finger] - 1)
               synth.noteoff(0, notes[finger])
-              print("left hand noteoff:", left_adjust)
+            #  print("left hand noteoff:", left_adjust)
             if finger >= 4 and finger <= 7:
               synth.noteoff(0, notes[finger] + 1)
               synth.noteoff(0, notes[finger] - 1)
               synth.noteoff(0, notes[finger])
-              print("right hand noteoff:", right_adjust)
+            #  print("right hand noteoff:", right_adjust)
       if (last_fingers == None):
         last_fingers = [[],[]]
       last_fingers[right(convert(lmlist))] = fingers
