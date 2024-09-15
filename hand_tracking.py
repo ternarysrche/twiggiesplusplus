@@ -1,31 +1,13 @@
 # New version of the hand tracking module
-
 import cv2
-from flask import Flask, Response
-# def generate_frames():
-#     while True:
-#         success, frame = camera.read()
-#         if not success:
-#             break
-#         else:
-#             # Encode frame to JPEG
-#             ret, buffer = cv2.imencode('.jpg', frame)
-#             frame = buffer.tobytes()
-
-#             # Yield frame as byte stream in the format of a multipart response
-#             yield (b'--frame\r\n'
-#                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
-
-# # Video feed route
-# @app.route('/video_feed')
-# def video_feed():
-#     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-# if __name__ == '__main__':
-#     app.run(debug=True)
-
 import mediapipe as mp
 import time 
+import threading
+
+from midi_synth import check
+
+flags = [True, True, True, True]
+newFlags = [True, True, True, True]
 
 class handDetector():
   def __init__(self, mode = False, maxHands = 2, modelComplex = 1,detectionCon = .5, trackCon = .5):
@@ -88,7 +70,6 @@ def main():
   cTime = 0
   cap = cv2.VideoCapture(0)
   detector = handDetector()
-  frame = None
 
   #CALIBRATION
   
@@ -96,14 +77,12 @@ def main():
   last = []
   inconsistency = 0
   ar_valid = []
-  while (len(ar_valid) <= 100):
+  while (len(ar_valid) <= 20):
     success, img = cap.read()
     cv2.putText(img, "PLACE YOUR HANDS OUT IN FRONT OF YOU FOR CALIBRATION", (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
     img = detector.findHands(img)
     lmlist = detector.findPosition(img)
     print(len(ar_valid))
-
-    
     
     if (last != []):
       # print(computeDiff(compute(convert(lmlist)), last))
@@ -125,7 +104,6 @@ def main():
     fps = 1/(cTime - pTime)
     pTime = cTime
 
-    
 
     cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
     cv2.imshow("Image", img)
@@ -138,31 +116,22 @@ def main():
     defaultratios[i] /= len(ar_valid)
   
   while (True):
-    success, frame = cap.read()
-    if not success:
-            break
-    else:
-            # Encode frame to JPEG
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-
-            # Yield frame as byte stream in the format of a multipart response
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
-    img = frame
-    try:
-      img = detector.findHands(img)
-      lmlist = detector.findPosition(img)
-    except:
-       continue
+    success, img = cap.read()
+    img = detector.findHands(img)
+    lmlist = detector.findPosition(img)
 
     if (compute(convert(lmlist)) != []):
       currentratios = compute(convert(lmlist))
       print(currentratios)
       fingers = []
+      flag = False
       for i in range(len(currentratios)):
         if currentratios[i]/defaultratios[i] < 0.3:
           fingers.append(i)
+          thread = threading.Thread(target=check, args=(fingers,i, flags, newFlags))
+          thread.daemon = True
+          thread.start()
+
       cv2.putText(img, str(fingers), (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
     # if len(lmlist) != 0:
     #   print(lmlist[4])
@@ -170,21 +139,12 @@ def main():
     fps = 1/(cTime - pTime)
     pTime = cTime
 
-    
-
     cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
     cv2.imshow("Image", img)
     cv2.waitKey(1)
-app = Flask(__name__)
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(main(), mimetype='multipart/x-mixed-replace; boundary=frame')
 if __name__ == "__main__":
-  app.run(debug=True)
-  # main()
-
-
+  main()
 
 
 
