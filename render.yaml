@@ -1,3 +1,7 @@
-build:
-  commands:
-    - apt-get update && apt-get install -y portaudio19-dev
+services:
+  - type: web
+    name: my-flask-app
+    env: python
+    buildCommand: 
+      - apt-get update && apt-get install -y portaudio19-dev libasound2-dev
+    startCommand: gunicorn app:app
