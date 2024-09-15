@@ -8,10 +8,10 @@ import time
 import threading
 
 synth = tinysoundfont.Synth()
-sfid = synth.sfload("/Users/alxli/Documents/CS Projects/2024 HackMIT/florestan-subset.sfo")
+sfid = synth.sfload("florestan-subset.sfo")
 synth.program_select(0, sfid, 0, 2) #select instrument type
 synth.start()
-notes = [48, 50, 52, 53]
+notes = [48, 50, 52, 53, 55, 57, 59, 60] # C4 to C5
 
 class handDetector():
   def __init__(self, mode = False, maxHands = 2, modelComplex = 1,detectionCon = .5, trackCon = .5):
@@ -36,6 +36,8 @@ class handDetector():
     return img
   def findPosition(self, img, handNo = 0, draw =  True):
     lmlist = []
+    if (self.results.multi_hand_landmarks and handNo >= len(self.results.multi_hand_landmarks)):
+      return []
     if self.results.multi_hand_landmarks:
       myHand = self.results.multi_hand_landmarks[handNo]
       for id, lm in enumerate(myHand.landmark):
@@ -70,7 +72,7 @@ def convert(list):
   return vec
 
 def right(vec):
-    inds = [4, 8, 12, 16, 20]
+    inds = [3, 5, 9, 13, 17]
     gre = 0
     for i in range(len(inds) - 1):
         if (vec[inds[i]][0] < vec[inds[i+1]][0]):
@@ -88,52 +90,72 @@ def main():
 
   #CALIBRATION
   
-  count = 0
-  last = []
-  inconsistency = 0
+  # last = []
+  inconsistency = [0,0]
   ar_valid = [[],[]]
+  alt = 0
   while (len(ar_valid[0]) <= 20 or len(ar_valid[1]) <= 20):
     success, img = cap.read()
-    cv2.putText(img, "PLACE YOUR HANDS OUT IN FRONT OF YOU FOR CALIBRATION", (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+    print("going")
+    cv2.putText(img, "PLACE YOUR HANDS OUT FACING CAMERA FOR CALIBRATION", (200,500), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
     img = detector.findHands(img)
-    lmlist = detector.findPosition(img)
-    print(len(ar_valid))
-    
-    if (last != []):
-      # print(computeDiff(compute(convert(lmlist)), last))
-      # print(compute(convert(lmlist)))
-      if (len(ar_valid)[right(convert(lmlist))] == 0):
-        ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
-      elif (computeDiff(compute(convert(lmlist)), ar_valid[right(convert(lmlist))][0]) > 0.1):
-          inconsistency += 1
-          cv2.putText(img, "DON'T MOVE YOUR HANDS!!", (200,600), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
-      else:
-        ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
-    if (inconsistency >= 20):
-      ar_valid[right(convert(lmlist))] = []
-      inconsistency = 0
-    # if len(lmlist) != 0:
-    #   print(lmlist[4])
+    alt = 1-alt
+    lmlist = detector.findPosition(img, alt)
     cTime = time.time()
     fps = 1/(cTime - pTime)
     pTime = cTime
-
-
     cv2.putText(img, str(int(fps)), (10,70), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+    
+
+
+    
+    if (lmlist == []):
+      cv2.imshow("Image", img)
+      cv2.waitKey(1)
+      continue
+    if (len(ar_valid[right(convert(lmlist))]) == 21):
+      cv2.imshow("Image", img)
+      cv2.waitKey(1)
+      continue
+    print(len(ar_valid[0]), len(ar_valid[1]), right(convert(lmlist)))
+      # print(computeDiff(compute(convert(lmlist)), last))
+      # print(compute(convert(lmlist)))
+    if (len(ar_valid[right(convert(lmlist))]) == 0):
+      ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
+      print(ar_valid[right(convert(lmlist))])
+      print(1)
+    elif (computeDiff(compute(convert(lmlist)), ar_valid[right(convert(lmlist))][0]) > 0.1):
+      inconsistency[right(convert(lmlist))] += 1
+      cv2.putText(img, "DON'T MOVE YOUR HANDS!!", (200,600), cv2.FONT_HERSHEY_PLAIN, 3, (255,0,255), 3)
+      print(2)
+    else:
+      ar_valid[right(convert(lmlist))].append(compute(convert(lmlist)))
+      print(3)
+
+    if (inconsistency[right(convert(lmlist))] >= 20):
+      print("delete")
+      ar_valid[right(convert(lmlist))] = []
+      inconsistency[right(convert(lmlist))] = 0
+    # if len(lmlist) != 0:
+    #   print(lmlist[4])
     cv2.imshow("Image", img)
-    cv2.waitKey(1)
-  defaultratios = [[0 for i in range(len(ar_valid[0]))] for i in range(2)]
-  print(defaultratios)
+    cv2.waitKey(1) 
+
+
+    
+  defaultratios = [[0 for i in range(len(ar_valid[0][0]))] for i in range(2)]
   for k in range(2):
     for i in range(len(ar_valid[k][0])):
         for j in range(len(ar_valid[k])):
-            defaultratios[k][i] += ar_valid[k][j][i]
-            defaultratios[k][i] /= len(ar_valid[k])
+          defaultratios[k][i] += ar_valid[k][j][i]
+        defaultratios[k][i] /= len(ar_valid[k])
+  print(defaultratios)
   last_fingers = None
   while (True):
     success, img = cap.read()
     img = detector.findHands(img)
-    lmlist = detector.findPosition(img)
+    alt = 1-alt
+    lmlist = detector.findPosition(img, alt)
     
     if (compute(convert(lmlist)) != []):
       currentratios = compute(convert(lmlist))
@@ -142,7 +164,7 @@ def main():
       flag = False
       for i in range(len(currentratios)):
         if currentratios[i]/defaultratios[right(convert(lmlist))][i] < 0.3:
-          fingers.append(i)
+          fingers.append(abs(3* (right(convert(lmlist)))-i) + 4*(1-right(convert(lmlist))))
       print(fingers)
       if (last_fingers != None):
         for finger in fingers:
