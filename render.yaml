@@ -2,6 +2,6 @@ services:
   - type: web
     name: new_midi
     env: python
-    buildCommand:
-      - apt-get install portaudio19-dev python-pyaudio python3-pyaudio
+    buildCommand: |
+      apt-get update && apt-get install -y build-essential wget portaudio19-dev libasound2-dev
     startCommand: gunicorn new_midi:new_midi
