@@ -8,7 +8,7 @@ import time
 import threading
 
 synth = tinysoundfont.Synth()
-sfid = synth.sfload("/Users/alxli/Documents/CS Projects/2024 HackMIT/florestan-subset.sfo")
+sfid = synth.sfload("florestan-subset.sfo")
 synth.program_select(0, sfid, 0, 2) #select instrument type
 synth.start()
 notes = [48, 50, 52, 53, 55, 57, 59, 60] # C4 to C5
