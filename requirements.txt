@@ -1,4 +1,4 @@
-PyAudio-0.2.11-cp38-cp38-win_amd64.whl
+PyAudio-0.2.9-cp35-none-win_amd64
 absl-py==2.1.0
 anyio==4.4.0
 appnope==0.1.4
